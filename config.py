@@ -32,3 +32,7 @@ CONTACT_STATUSES = [
     'Lead', 'Contacted', 'Replied', 'Qualified', 
     'Converted', 'Not Interested'
 ]
+
+# API Keys for lead discovery
+GOOGLE_PLACES_API_KEY = os.getenv('GOOGLE_PLACES_API_KEY', '')
+YELP_API_KEY = os.getenv('YELP_API_KEY', '')
