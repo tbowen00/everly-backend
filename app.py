@@ -41,6 +41,14 @@ def index():
 def health():
     return jsonify({'status': 'healthy'})
 
+@app.route('/api/email/test', methods=['GET'])
+def test_email_connection():
+    """Test email SMTP connection"""
+    from services.email_service import EmailService
+    email_service = EmailService()
+    result = email_service.test_connection()
+    return jsonify(result)
+
 if __name__ == '__main__':
     print("=" * 60, flush=True)
     print("🚀 Everly Studio Lead Generation Engine", flush=True)
@@ -49,19 +57,3 @@ if __name__ == '__main__':
     print("Press CTRL+C to stop", flush=True)
     print("=" * 60, flush=True)
     app.run(host=HOST, port=PORT, debug=DEBUG)
-
-@app.route('/api/email/test', methods=['GET'])
-def test_email_connection():
-    """Test email SMTP connection"""
-    from services.email_service import EmailService
-    email_service = EmailService()
-    result = email_service.test_connection()
-    return jsonify(result)
-
-@app.route('/api/email/test', methods=['GET'])
-def test_email_connection():
-    """Test email SMTP connection"""
-    from services.email_service import EmailService
-    email_service = EmailService()
-    result = email_service.test_connection()
-    return jsonify(result)

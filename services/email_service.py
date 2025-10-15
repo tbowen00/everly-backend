@@ -4,6 +4,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from dotenv import load_dotenv
+import traceback
 
 load_dotenv()
 
@@ -16,9 +17,23 @@ class EmailService:
         self.from_email = os.getenv('SMTP_FROM_EMAIL')
         self.from_name = os.getenv('SMTP_FROM_NAME', 'Everly Studio')
         
+        # Log configuration (without exposing password)
+        print(f"📧 Email Service Initialized:", flush=True)
+        print(f"  SMTP Host: {self.smtp_host}", flush=True)
+        print(f"  SMTP Port: {self.smtp_port}", flush=True)
+        print(f"  Username: {self.smtp_username}", flush=True)
+        print(f"  From Email: {self.from_email}", flush=True)
+        print(f"  Password Configured: {'Yes' if self.smtp_password else 'No'}", flush=True)
+        
     def send_email(self, to_email, subject, body_html, body_text=None):
         """Send a single email"""
         try:
+            # Validate configuration
+            if not all([self.smtp_username, self.smtp_password, self.from_email]):
+                error_msg = "SMTP credentials not fully configured"
+                print(f"❌ {error_msg}", flush=True)
+                return {'success': False, 'error': error_msg}
+            
             msg = MIMEMultipart('alternative')
             msg['From'] = f"{self.from_name} <{self.from_email}>"
             msg['To'] = to_email
@@ -34,17 +49,39 @@ class EmailService:
             msg.attach(part2)
             
             # Connect and send
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+            print(f"📤 Attempting to send email to {to_email}...", flush=True)
+            print(f"  Connecting to {self.smtp_host}:{self.smtp_port}", flush=True)
+            
+            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
+                server.set_debuglevel(1)  # Enable debug output
+                print("  Starting TLS...", flush=True)
                 server.starttls()
+                
+                print(f"  Logging in as {self.smtp_username}...", flush=True)
                 server.login(self.smtp_username, self.smtp_password)
+                
+                print(f"  Sending message...", flush=True)
                 server.send_message(msg)
             
-            print(f"✓ Email sent to {to_email}", flush=True)
+            print(f"✅ Email sent successfully to {to_email}", flush=True)
             return {'success': True}
             
+        except smtplib.SMTPAuthenticationError as e:
+            error_msg = f"SMTP Authentication failed: {str(e)}"
+            print(f"❌ {error_msg}", flush=True)
+            return {'success': False, 'error': error_msg}
+            
+        except smtplib.SMTPException as e:
+            error_msg = f"SMTP error: {str(e)}"
+            print(f"❌ {error_msg}", flush=True)
+            traceback.print_exc()
+            return {'success': False, 'error': error_msg}
+            
         except Exception as e:
-            print(f"✗ Failed to send email to {to_email}: {str(e)}", flush=True)
-            return {'success': False, 'error': str(e)}
+            error_msg = f"Unexpected error sending email: {str(e)}"
+            print(f"❌ {error_msg}", flush=True)
+            traceback.print_exc()
+            return {'success': False, 'error': error_msg}
     
     def send_bulk_emails(self, recipients, subject, body_html, body_text=None):
         """Send emails to multiple recipients"""
@@ -72,9 +109,23 @@ class EmailService:
     def test_connection(self):
         """Test SMTP connection"""
         try:
-            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+            if not all([self.smtp_username, self.smtp_password]):
+                return {
+                    'success': False, 
+                    'error': 'SMTP username or password not configured'
+                }
+                
+            print(f"Testing SMTP connection to {self.smtp_host}:{self.smtp_port}...", flush=True)
+            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
+                server.set_debuglevel(1)
                 server.starttls()
                 server.login(self.smtp_username, self.smtp_password)
+                
+            print("✅ SMTP connection successful", flush=True)
             return {'success': True, 'message': 'SMTP connection successful'}
+            
         except Exception as e:
-            return {'success': False, 'error': str(e)}
+            error_msg = f"SMTP connection failed: {str(e)}"
+            print(f"❌ {error_msg}", flush=True)
+            traceback.print_exc()
+            return {'success': False, 'error': error_msg}
