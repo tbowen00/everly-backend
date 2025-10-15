@@ -23,7 +23,7 @@ from models.outreach import Outreach
 from services.email_service import EmailService
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["*"])
 
 # Register all blueprints
 app.register_blueprint(contacts_bp, url_prefix='/api')
