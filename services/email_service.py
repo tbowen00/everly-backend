@@ -48,20 +48,25 @@ class EmailService:
             part2 = MIMEText(body_html, 'html')
             msg.attach(part2)
             
-            # Connect and send
             print(f"📤 Attempting to send email to {to_email}...", flush=True)
             print(f"  Connecting to {self.smtp_host}:{self.smtp_port}", flush=True)
             
-            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
-                server.set_debuglevel(1)  # Enable debug output
-                print("  Starting TLS...", flush=True)
-                server.starttls()
-                
-                print(f"  Logging in as {self.smtp_username}...", flush=True)
-                server.login(self.smtp_username, self.smtp_password)
-                
-                print(f"  Sending message...", flush=True)
-                server.send_message(msg)
+            # Use SSL for port 465, STARTTLS for port 587
+            if self.smtp_port == 465:
+                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=30) as server:
+                    print(f"  Using SSL connection...", flush=True)
+                    print(f"  Logging in as {self.smtp_username}...", flush=True)
+                    server.login(self.smtp_username, self.smtp_password)
+                    print(f"  Sending message...", flush=True)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
+                    print("  Starting TLS...", flush=True)
+                    server.starttls()
+                    print(f"  Logging in as {self.smtp_username}...", flush=True)
+                    server.login(self.smtp_username, self.smtp_password)
+                    print(f"  Sending message...", flush=True)
+                    server.send_message(msg)
             
             print(f"✅ Email sent successfully to {to_email}", flush=True)
             return {'success': True}
@@ -116,10 +121,15 @@ class EmailService:
                 }
                 
             print(f"Testing SMTP connection to {self.smtp_host}:{self.smtp_port}...", flush=True)
-            with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
-                server.set_debuglevel(1)
-                server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
+            
+            # Use SSL for port 465, STARTTLS for port 587
+            if self.smtp_port == 465:
+                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=30) as server:
+                    server.login(self.smtp_username, self.smtp_password)
+            else:
+                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
+                    server.starttls()
+                    server.login(self.smtp_username, self.smtp_password)
                 
             print("✅ SMTP connection successful", flush=True)
             return {'success': True, 'message': 'SMTP connection successful'}
