@@ -1,27 +1,26 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, scoped_session
-import sys
+from sqlalchemy.orm import sessionmaker
 import os
+from dotenv import load_dotenv
 
-# Add parent directory to path to import config
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import DATABASE_URI
+load_dotenv()
 
-# Create engine
-engine = create_engine(DATABASE_URI, echo=False)
+# Get database URL from environment (Railway sets this automatically)
+DATABASE_URL = os.getenv('DATABASE_URL')
 
-# Create session factory
-session_factory = sessionmaker(bind=engine)
-Session = scoped_session(session_factory)
+# Railway provides DATABASE_URL starting with postgres://
+# But SQLAlchemy 1.4+ requires postgresql://
+if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# Base class for models
+# Use PostgreSQL in production, SQLite locally
+if not DATABASE_URL:
+    DATABASE_URL = 'sqlite:///leads.db'
+
+engine = create_engine(DATABASE_URL, echo=False)
+SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
 def get_session():
-    """Get a new database session"""
-    return Session()
-
-def close_session():
-    """Close the current session"""
-    Session.remove()
+    return SessionLocal()
