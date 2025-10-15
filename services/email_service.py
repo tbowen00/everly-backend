@@ -1,90 +1,52 @@
-import smtplib
 import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from datetime import datetime
+import resend
 from dotenv import load_dotenv
-import traceback
 
 load_dotenv()
 
 class EmailService:
     def __init__(self):
-        self.smtp_host = os.getenv('SMTP_HOST', 'mail.privateemail.com')
-        self.smtp_port = int(os.getenv('SMTP_PORT', 587))
-        self.smtp_username = os.getenv('SMTP_USERNAME')
-        self.smtp_password = os.getenv('SMTP_PASSWORD')
-        self.from_email = os.getenv('SMTP_FROM_EMAIL')
+        self.api_key = os.getenv('RESEND_API_KEY')
+        self.from_email = os.getenv('SMTP_FROM_EMAIL', 'hello@everlystudio.co')
         self.from_name = os.getenv('SMTP_FROM_NAME', 'Everly Studio')
         
-        # Log configuration (without exposing password)
-        print(f"📧 Email Service Initialized:", flush=True)
-        print(f"  SMTP Host: {self.smtp_host}", flush=True)
-        print(f"  SMTP Port: {self.smtp_port}", flush=True)
-        print(f"  Username: {self.smtp_username}", flush=True)
+        if self.api_key:
+            resend.api_key = self.api_key
+        
+        # Log configuration
+        print(f"📧 Email Service Initialized (Resend):", flush=True)
         print(f"  From Email: {self.from_email}", flush=True)
-        print(f"  Password Configured: {'Yes' if self.smtp_password else 'No'}", flush=True)
+        print(f"  API Key Configured: {'Yes' if self.api_key else 'No'}", flush=True)
         
     def send_email(self, to_email, subject, body_html, body_text=None):
-        """Send a single email"""
+        """Send a single email using Resend"""
         try:
-            # Validate configuration
-            if not all([self.smtp_username, self.smtp_password, self.from_email]):
-                error_msg = "SMTP credentials not fully configured"
+            if not self.api_key:
+                error_msg = "Resend API key not configured"
                 print(f"❌ {error_msg}", flush=True)
                 return {'success': False, 'error': error_msg}
             
-            msg = MIMEMultipart('alternative')
-            msg['From'] = f"{self.from_name} <{self.from_email}>"
-            msg['To'] = to_email
-            msg['Subject'] = subject
+            print(f"📤 Sending email to {to_email} via Resend...", flush=True)
             
-            # Add plain text version (fallback)
+            params = {
+                "from": f"{self.from_name} <{self.from_email}>",
+                "to": [to_email],
+                "subject": subject,
+                "html": body_html,
+            }
+            
             if body_text:
-                part1 = MIMEText(body_text, 'plain')
-                msg.attach(part1)
+                params["text"] = body_text
             
-            # Add HTML version
-            part2 = MIMEText(body_html, 'html')
-            msg.attach(part2)
+            email = resend.Emails.send(params)
             
-            print(f"📤 Attempting to send email to {to_email}...", flush=True)
-            print(f"  Connecting to {self.smtp_host}:{self.smtp_port}", flush=True)
-            
-            # Use SSL for port 465, STARTTLS for port 587
-            if self.smtp_port == 465:
-                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=30) as server:
-                    print(f"  Using SSL connection...", flush=True)
-                    print(f"  Logging in as {self.smtp_username}...", flush=True)
-                    server.login(self.smtp_username, self.smtp_password)
-                    print(f"  Sending message...", flush=True)
-                    server.send_message(msg)
-            else:
-                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
-                    print("  Starting TLS...", flush=True)
-                    server.starttls()
-                    print(f"  Logging in as {self.smtp_username}...", flush=True)
-                    server.login(self.smtp_username, self.smtp_password)
-                    print(f"  Sending message...", flush=True)
-                    server.send_message(msg)
-            
-            print(f"✅ Email sent successfully to {to_email}", flush=True)
+            print(f"✅ Email sent successfully to {to_email} (ID: {email['id']})", flush=True)
             return {'success': True}
             
-        except smtplib.SMTPAuthenticationError as e:
-            error_msg = f"SMTP Authentication failed: {str(e)}"
-            print(f"❌ {error_msg}", flush=True)
-            return {'success': False, 'error': error_msg}
-            
-        except smtplib.SMTPException as e:
-            error_msg = f"SMTP error: {str(e)}"
-            print(f"❌ {error_msg}", flush=True)
-            traceback.print_exc()
-            return {'success': False, 'error': error_msg}
-            
         except Exception as e:
-            error_msg = f"Unexpected error sending email: {str(e)}"
+            error_msg = f"Error sending email: {str(e)}"
             print(f"❌ {error_msg}", flush=True)
+            import traceback
             traceback.print_exc()
             return {'success': False, 'error': error_msg}
     
@@ -112,30 +74,33 @@ class EmailService:
         return results
     
     def test_connection(self):
-        """Test SMTP connection"""
+        """Test Resend API connection"""
         try:
-            if not all([self.smtp_username, self.smtp_password]):
+            if not self.api_key:
                 return {
                     'success': False, 
-                    'error': 'SMTP username or password not configured'
+                    'error': 'Resend API key not configured'
                 }
-                
-            print(f"Testing SMTP connection to {self.smtp_host}:{self.smtp_port}...", flush=True)
             
-            # Use SSL for port 465, STARTTLS for port 587
-            if self.smtp_port == 465:
-                with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=30) as server:
-                    server.login(self.smtp_username, self.smtp_password)
+            print("Testing Resend API connection...", flush=True)
+            
+            # Try sending a test email to verify the API key works
+            # Note: This will actually send an email
+            test_result = self.send_email(
+                to_email=self.from_email,  # Send test to yourself
+                subject="Test Email from Everly Studio",
+                body_html="<p>This is a test email to verify your Resend integration is working!</p>"
+            )
+            
+            if test_result['success']:
+                print("✅ Resend API connection successful", flush=True)
+                return {'success': True, 'message': 'Resend API connection successful'}
             else:
-                with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30) as server:
-                    server.starttls()
-                    server.login(self.smtp_username, self.smtp_password)
-                
-            print("✅ SMTP connection successful", flush=True)
-            return {'success': True, 'message': 'SMTP connection successful'}
+                return {'success': False, 'error': test_result.get('error')}
             
         except Exception as e:
-            error_msg = f"SMTP connection failed: {str(e)}"
+            error_msg = f"Resend API test failed: {str(e)}"
             print(f"❌ {error_msg}", flush=True)
+            import traceback
             traceback.print_exc()
             return {'success': False, 'error': error_msg}
