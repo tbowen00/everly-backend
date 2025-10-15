@@ -57,3 +57,11 @@ def test_email_connection():
     email_service = EmailService()
     result = email_service.test_connection()
     return jsonify(result)
+
+@app.route('/api/email/test', methods=['GET'])
+def test_email_connection():
+    """Test email SMTP connection"""
+    from services.email_service import EmailService
+    email_service = EmailService()
+    result = email_service.test_connection()
+    return jsonify(result)
